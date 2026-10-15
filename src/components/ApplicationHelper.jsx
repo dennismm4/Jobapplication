@@ -11,8 +11,8 @@ const TOOLS = [
 function missingInfo(job, profile) {
   const items = [];
   if (!profile?.summary && !profile?.experience && !profile?.skills) items.push('Add a professional summary, skills, or work experience in My profile before generating profile-based drafts.');
-  if (job.tab === 'uk-visa') {
-    if (!profile?.workAuthorization) items.push('Your UK work-authorisation wording is missing. Drafts will not claim a visa status.');
+  if (job.tab === 'uk-visa' || job.tab === 'nordic-visa') {
+    if (!profile?.workAuthorization) items.push(`Your ${job.tab === 'uk-visa' ? 'UK' : 'country-specific'} work-authorisation wording is missing. Drafts will not claim a visa status.`);
   }
   if (!job.closingDate) items.push('The listing does not state a closing date. Check the employer’s page.');
   items.push('The hiring manager’s name is not stated in the listing.');
@@ -39,6 +39,8 @@ function coverSkeleton(job, profile = {}) {
     '',
     job.tab === 'uk-visa'
       ? (profile.workAuthorization || '[Add your accurate UK work-authorisation statement before using this letter.]')
+      : job.tab === 'nordic-visa'
+        ? (profile.workAuthorization || '[Add your accurate work-authorisation statement for this country before using this letter.]')
       : '[Closing: availability and notice period, in wording you approve.]',
     '',
     'Yours sincerely,',

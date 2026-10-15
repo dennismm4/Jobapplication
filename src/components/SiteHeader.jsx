@@ -5,6 +5,7 @@ export default function SiteHeader({ tabs, active, counts, trackedCount }) {
   const today = startOfToday();
   const links = [
     ...tabs.map((t) => ({ id: t.id, label: t.label, to: href.tab(t.id), count: counts[t.id] })),
+    { id: 'search', label: 'Search a URL', to: href.search() },
     { id: 'applications', label: 'My applications', to: href.applications(), count: trackedCount },
     { id: 'profile', label: 'My profile', to: href.profile() },
   ];

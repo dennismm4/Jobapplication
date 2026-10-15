@@ -93,15 +93,22 @@ function sponsorMatch(employer, names) {
   return false;
 }
 
-async function adzunaUkJobs(register) {
+async function adzunaSearch(country, query, perPage = 100) {
   const { ADZUNA_APP_ID: appId, ADZUNA_APP_KEY: appKey } = process.env;
-  if (!appId || !appKey) { feedReport.push('Adzuna UK skipped: ADZUNA_APP_ID or ADZUNA_APP_KEY is missing.'); return null; }
-  const url = new URL('https://api.adzuna.com/v1/api/jobs/gb/search/1');
-  for (const [key, value] of Object.entries({ app_id: appId, app_key: appKey, results_per_page: '100', what: 'visa sponsorship', 'content-type': 'application/json' })) url.searchParams.set(key, value);
+  const url = new URL(`https://api.adzuna.com/v1/api/jobs/${country}/search/1`);
+  for (const [key, value] of Object.entries({ app_id: appId, app_key: appKey, results_per_page: String(perPage), what: query, 'content-type': 'application/json' })) url.searchParams.set(key, value);
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`Adzuna UK returned ${response.status}`);
-  const payload = await response.json();
-  const jobs = (payload.results || []).flatMap((item) => {
+  if (!response.ok) throw new Error(`Adzuna ${country.toUpperCase()} returned ${response.status}`);
+  return (await response.json()).results || [];
+}
+
+async function adzunaUkJobs(register) {
+  const [generalResults, nhsResults] = await Promise.all([
+    adzunaSearch('gb', 'visa sponsorship'),
+    adzunaSearch('gb', 'NHS visa sponsorship'),
+  ]);
+  const items = new Map([...generalResults, ...nhsResults].map((item) => [item.redirect_url, item]));
+  const jobs = [...items.values()].flatMap((item) => {
     const description = text(item.description || '');
     const evidence = `${item.title || ''} ${description}`;
     const statesSponsorship = /visa sponsorship|sponsorship available|skilled worker (?:visa )?sponsorship|certificate of sponsorship|will sponsor (?:the )?(?:right )?candidate/i.test(evidence);
@@ -116,20 +123,63 @@ async function adzunaUkJobs(register) {
       salary: item.salary_min && item.salary_max ? `${Math.round(item.salary_min)}–${Math.round(item.salary_max)} ${item.salary_is_predicted ? '(estimated)' : ''}`.trim() : 'Not stated',
       postedDate: plainDate(item.created), closingDate: null, foundDate: today, source: 'Adzuna', url: item.redirect_url,
       summary: description.slice(0, 250), description: description ? [description.slice(0, 5000)] : [],
-      requirements: [], listingSignals: ['Listing explicitly mentions visa sponsorship'], applicationQuestions: [], isSample: false,
+      requirements: [], listingSignals: ['Listing explicitly mentions visa sponsorship', ...( /\bNHS\b|National Health Service|NHS (?:Trust|Foundation Trust)/i.test(`${item.company?.display_name || ''} ${item.title || ''}`) ? ['NHS role prioritised'] : [])], applicationQuestions: [], isSample: false,
       sponsorship: { status: 'verified', summary: 'The listing mentions sponsorship and the employer name matches the current GOV.UK Skilled Worker sponsor register. This does not guarantee sponsorship for this vacancy; verify with the employer.', evidence: [
         { label: 'Job listing', detail: 'Sponsorship wording found in the Adzuna listing description.', url: item.redirect_url },
         { label: 'GOV.UK register', detail: `Employer name matched an entry in the published worker sponsor register${register.registerDate ? ` (file dated ${register.registerDate})` : ''}.`, url: register.url },
       ] },
     }];
   });
-  feedReport.push(`Adzuna UK: ${jobs.length} listings passed sponsorship wording and register checks.`);
+  jobs.sort((a, b) => Number(b.listingSignals.includes('NHS role prioritised')) - Number(a.listingSignals.includes('NHS role prioritised')) || (b.postedDate || '').localeCompare(a.postedDate || ''));
+  feedReport.push(`Adzuna UK: ${jobs.length} listings passed sponsorship wording and register checks; NHS roles ranked first, with other UK locations retained.`);
   return jobs;
+}
+
+async function adzunaNordicJobs() {
+  const [sweden, finland] = await Promise.all([
+    Promise.all([adzunaSearch('se', 'visa sponsorship'), adzunaSearch('se', 'work permit relocation')]),
+    Promise.all([adzunaSearch('fi', 'visa sponsorship'), adzunaSearch('fi', 'work permit relocation')]),
+  ]);
+  const seen = new Set();
+  const jobs = [
+    ...sweden.flat().map((item) => ({ item, country: 'Sweden' })),
+    ...finland.flat().map((item) => ({ item, country: 'Finland' })),
+  ]
+    .flatMap(({ item, country }) => {
+      const description = text(item.description || '');
+      const evidence = `${item.title || ''} ${description}`;
+      const explicit = /visa sponsorship|work[- ]permit sponsorship|relocation (?:support|assistance)|will sponsor (?:the )?(?:right )?candidate/i.test(evidence);
+      const disclaims = /no sponsorship|cannot sponsor|unable to sponsor|not able to sponsor/i.test(evidence);
+      if (!explicit || disclaims || !item.redirect_url || seen.has(item.redirect_url)) return [];
+      seen.add(item.redirect_url);
+      return [{
+        id: `adz-${idFor(item.redirect_url)}`, tab: 'nordic-visa', title: text(item.title), employer: text(item.company?.display_name || 'Employer not stated'),
+        location: text(item.location?.display_name || country).toLowerCase().includes(country.toLowerCase()) ? text(item.location.display_name) : `${text(item.location?.display_name || 'Location not stated')}, ${country}`, workMode: 'Not stated', contractType: text(item.contract_type || 'Not stated'),
+        salary: item.salary_min && item.salary_max ? `${Math.round(item.salary_min)}–${Math.round(item.salary_max)} ${item.salary_is_predicted ? '(estimated)' : ''}`.trim() : 'Not stated',
+        postedDate: plainDate(item.created), closingDate: null, foundDate: today, source: 'Adzuna', url: item.redirect_url,
+        summary: description.slice(0, 250), description: description ? [description.slice(0, 5000)] : [], requirements: [],
+        listingSignals: ['Listing mentions work permit, visa sponsorship or relocation support'], applicationQuestions: [], isSample: false,
+        sponsorship: { status: 'unverified', summary: 'The listing mentions immigration or relocation support. No Nordic government sponsor-register verification was performed; confirm the permit route and support directly with the employer.', evidence: [{ label: 'Job listing', detail: 'Relevant sponsorship or relocation wording found in the listing.', url: item.redirect_url }] },
+      }];
+    });
+  feedReport.push(`Adzuna Sweden and Finland: ${jobs.length} listings with explicit work-permit or relocation wording.`);
+  const byCountry = {
+    Sweden: jobs.filter((job) => /Sweden$/i.test(job.location)).sort((a, b) => (b.postedDate || '').localeCompare(a.postedDate || '')),
+    Finland: jobs.filter((job) => /Finland$/i.test(job.location)).sort((a, b) => (b.postedDate || '').localeCompare(a.postedDate || '')),
+  };
+  const balanced = [];
+  while (balanced.length < MAX_PER_TAB && (byCountry.Sweden.length || byCountry.Finland.length)) {
+    for (const country of ['Sweden', 'Finland']) {
+      if (byCountry[country].length && balanced.length < MAX_PER_TAB) balanced.push(byCountry[country].shift());
+    }
+  }
+  return balanced;
 }
 
 async function main() {
   let relief = [];
   let uk = [];
+  let nordic = [];
   let sourceSucceeded = false;
   if (process.env.RELIEFWEB_APPNAME) {
     try { relief = await reliefWebJobs() || []; sourceSucceeded = true; }
@@ -138,10 +188,14 @@ async function main() {
 
   if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) {
     try {
+      nordic = await adzunaNordicJobs() || [];
+      sourceSucceeded = true;
+    } catch (error) { feedReport.push(`Adzuna Nordic search failed: ${error.message}`); }
+    try {
       const register = await sponsorNames();
       uk = await adzunaUkJobs(register) || [];
       sourceSucceeded = true;
-    } catch (error) { feedReport.push(`Adzuna or GOV.UK sponsor check failed: ${error.message}`); }
+    } catch (error) { feedReport.push(`Adzuna UK or GOV.UK sponsor check failed: ${error.message}`); }
   } else feedReport.push('Adzuna UK skipped: ADZUNA_APP_ID or ADZUNA_APP_KEY is missing.');
 
   if (!sourceSucceeded) {
@@ -150,7 +204,7 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  const jobs = [...relief.slice(0, MAX_PER_TAB), ...uk.slice(0, MAX_PER_TAB)];
+  const jobs = [...relief.slice(0, MAX_PER_TAB), ...uk.slice(0, MAX_PER_TAB), ...nordic.slice(0, MAX_PER_TAB)];
   const payload = { generatedAt: new Date().toISOString(), jobs, report: feedReport };
   await mkdir('public', { recursive: true });
   await writeFile('public/jobs.json', `${JSON.stringify(payload, null, 2)}\n`);

@@ -10,6 +10,7 @@ import JobsPage from './pages/JobsPage.jsx';
 import JobPage from './pages/JobPage.jsx';
 import ApplicationsPage from './pages/ApplicationsPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
+import UrlSearchPage from './pages/UrlSearchPage.jsx';
 
 export const MAX_PER_TAB = 5;
 
@@ -111,6 +112,8 @@ export default function App() {
     page = <ApplicationsPage jobs={trackedJobs} jobState={jobState} actions={actions} />;
   } else if (route.name === 'profile') {
     page = <ProfilePage profile={profile} onChange={setProfile} />;
+  } else if (route.name === 'search') {
+    page = <UrlSearchPage profile={profile} />;
   } else {
     page = (
       <JobsPage
@@ -139,6 +142,8 @@ export default function App() {
       ? allJobs.find((j) => j.id === route.id)?.tab
       : route.name === 'applications'
         ? 'applications'
+        : route.name === 'search'
+          ? 'search'
         : route.tab;
 
   return (

@@ -100,9 +100,9 @@ export default function JobPage({ job, state, actions, onDismissed, profile }) {
             )}
           </section>
 
-          {job.tab === 'uk-visa' && (
+          {(job.tab === 'uk-visa' || job.tab === 'nordic-visa') && (
             <section className="content-section" aria-labelledby="sec-visa">
-              <h2 id="sec-visa">Visa sponsorship evidence</h2>
+              <h2 id="sec-visa">{job.tab === 'uk-visa' ? 'Visa sponsorship evidence' : 'Work permit / relocation evidence'}</h2>
               {job.sponsorship ? (
                 <>
                   <div className={`callout ${job.sponsorship.status === 'verified' ? 'callout--ok' : 'callout--warn'}`}>
@@ -122,7 +122,7 @@ export default function JobPage({ job, state, actions, onDismissed, profile }) {
                     ))}
                   </ul>
                   <p className="fine-print">
-                    Always confirm sponsorship for this specific vacancy with the employer. A sponsor-register entry alone does not prove that a role offers sponsorship.
+                    Always confirm immigration support for this specific vacancy with the employer. {job.tab === 'uk-visa' && 'A sponsor-register entry alone does not prove that a role offers sponsorship.'}
                   </p>
                 </>
               ) : (

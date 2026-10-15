@@ -1,10 +1,12 @@
 # Job Desk
 
-A personal job-search and application-assistance **website** with three sections:
+A personal job-search and application-assistance **website** with these sections:
 
 1. **NGO Jobs in Kenya**
 2. **UK Visa Sponsorship Jobs**
-3. **My applications**: a tracker of every job you saved or gave a status
+3. **Sweden & Finland Sponsorship Jobs**
+4. **Search a URL**: search a public RSS, Atom or JSON job feed, rank by profile keywords and show at most 10 results
+5. **My applications**: a tracker of every job you saved or gave a status
 
 > Live search runs in GitHub Actions when its source secrets and Pages deployment are configured. Until then, the app clearly labels and shows fictional sample listings.
 
@@ -12,6 +14,9 @@ A personal job-search and application-assistance **website** with three sections
 
 - Website layout: header navigation, a page per category, a full page per job, and a tracker page. Each page has its own address (for example `#/uk-visa` or `#/job/uk-001`), so the browser Back button and bookmarks work.
 - Each category page shows up to 5 jobs, with a note when fewer than 5 are available. Each job shows title, employer, location, date posted, closing date (or "not stated"), source and an **Open job** link.
+- UK sponsored listings are ranked with NHS roles first when the NHS is named in the employer or title. The search still covers the full UK, so other UK locations remain eligible.
+- Nordic listings are searched in Sweden and Finland. They must mention sponsorship, work permits or relocation support; those signals are shown as unverified and must be confirmed with the employer.
+- **Search a URL** accepts a public HTTPS RSS, Atom or JSON feed, ranks jobs by keyword overlap with your profile and caps each search at 10 results. The feed must allow browser access (CORS); ordinary job-board pages, login-protected pages and feeds that block browser access cannot be fetched by this static site.
 - **Filters** (left sidebar): job title search, location, date posted, application status. Above the results: Active / Saved / Dismissed views and sorting by newest or closing soonest.
 - **Deduplication:** the same job from two sources is merged. The sample data includes one deliberate duplicate, shown as "also on …".
 - **Tracking:** Save, Dismiss (with Undo), Restore, and status: Interested, Preparing application, Applied, Rejected. Setting a status also saves the job.
@@ -50,7 +55,7 @@ For a manual fetch, set `RELIEFWEB_APPNAME`, `ADZUNA_APP_ID`, and `ADZUNA_APP_KE
 
 ## Daily job search and hosting
 
-`.github/workflows/daily-jobs.yml` runs every day at 06:00 East Africa Time and can also be started manually from the Actions tab. It collects up to five Kenya NGO jobs from ReliefWeb and up to five UK jobs from Adzuna. It does not pad the list when fewer qualify. ReliefWeb requires an approved app name; request one from ReliefWeb before using that connector. Adzuna requires an app ID and key.
+`.github/workflows/daily-jobs.yml` runs every day at 06:00 East Africa Time and can also be started manually from the Actions tab. It collects up to five Kenya NGO jobs from ReliefWeb, five UK sponsorship listings from Adzuna (NHS roles first, followed by other UK locations), and five Sweden/Finland listings from Adzuna. It does not pad a list when fewer qualify. ReliefWeb requires an approved app name; request one from ReliefWeb before using that connector. Adzuna requires an app ID and key.
 
 Add the following under **Settings → Secrets and variables → Actions**. Do not send secret values in chat or commit them:
 
@@ -75,12 +80,13 @@ job-desk/
 │  ├─ styles.css                All styling (design tokens, layout, responsive rules)
 │  ├─ data/sampleJobs.js        SAMPLE DATA (fictional fallback)
 │  ├─ lib/
-│  │  ├─ router.js              Page addresses (#/ngo-kenya, #/uk-visa, #/job/…, #/applications)
+│  │  ├─ router.js              Page addresses (#/ngo-kenya, #/uk-visa, #/nordic-visa, #/search, #/job/…)
 │  │  ├─ dates.js               Date formatting and "closes in" logic
 │  │  ├─ jobs.js                Dedupe, filters, sorting, statuses
 │  │  └─ storage.js             Browser-only persistence
 │  ├─ pages/
 │  │  ├─ JobsPage.jsx           Category page: filter sidebar + results
+│  │  ├─ UrlSearchPage.jsx      RSS, Atom and JSON search, relevance ranking, 10-result cap
 │  │  ├─ JobPage.jsx            Single job page with side panel
 │  │  ├─ ApplicationsPage.jsx   My applications tracker table
 │  │  └─ ProfilePage.jsx        Browser-local profile editor and backup
@@ -119,6 +125,7 @@ Live sources are mapped into the same shape and published as `public/jobs.json`,
 
 - Daily job search needs the three Actions secrets above and Pages configured. Missing or failed feeds leave the previous job batch in place.
 - The 5-job limit is per tab, not a promise that 5 suitable jobs will exist each day.
+- Custom URL search only works for direct RSS, Atom or JSON feeds that permit browser CORS access; a normal job-board web page URL is not a machine-readable feed.
 - Profile match indicators are keyword suggestions from your browser-local profile, not an eligibility decision.
 - The GitHub Actions workflow deploys a GitHub Pages site. Pages is publicly viewable even when the source repository is private; private Pages availability depends on the GitHub plan. Do not add personal profile data to the published job feed.
 - AI model integration, user accounts, a shared database, and automatic application submission are not implemented.

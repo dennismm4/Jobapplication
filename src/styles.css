@@ -310,6 +310,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .profile-form__field label { font-weight: 650; }
 .profile-form__field textarea { resize: vertical; line-height: 1.5; }
 .profile-form__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.url-job-list { padding-left: 24px; }
+.url-job-list li { padding: 14px 0; border-bottom: 1px solid var(--border); }
+.url-job-list li:last-child { border-bottom: 0; }
+.url-job-list h3 { margin: 0 0 6px; }
+.url-job-list p { margin: 4px 0; }
 .narrow { max-width: 820px; }
 .feed-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0 14px; }
 .feed-error { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--warn-soft); color: var(--warn); }
