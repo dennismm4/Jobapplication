@@ -2,8 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 
-// `npm run build` produces ONE self-contained file: dist/index.html.
-// It opens directly in any browser (double-click), no server needed.
+// The app shell is built into dist/index.html; public/jobs.json is copied beside it.
 export default defineConfig({
   base: './',
   plugins: [react(), viteSingleFile()],

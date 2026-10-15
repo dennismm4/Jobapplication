@@ -8,12 +8,11 @@ const TOOLS = [
 ];
 
 /** Information the drafts would need but that the app does not have yet. */
-function missingInfo(job) {
-  const items = [
-    'Your CV and profile have not been added. Drafts can only use facts from your profile and this listing.',
-  ];
+function missingInfo(job, profile) {
+  const items = [];
+  if (!profile?.summary && !profile?.experience && !profile?.skills) items.push('Add a professional summary, skills, or work experience in My profile before generating profile-based drafts.');
   if (job.tab === 'uk-visa') {
-    items.push('Your UK work-authorisation wording has not been provided. Drafts will not describe your visa status until you supply it.');
+    if (!profile?.workAuthorization) items.push('Your UK work-authorisation wording is missing. Drafts will not claim a visa status.');
   }
   if (!job.closingDate) items.push('The listing does not state a closing date. Check the employer’s page.');
   items.push('The hiring manager’s name is not stated in the listing.');
@@ -21,24 +20,25 @@ function missingInfo(job) {
 }
 
 /** Cover-letter skeleton built only from listing facts, with brackets for everything else. */
-function coverSkeleton(job) {
+function coverSkeleton(job, profile = {}) {
   const reqs = job.requirements.slice(0, 3);
+  const evidence = [profile.summary, profile.experience, profile.achievements].filter(Boolean).join('\n\n');
   return [
-    '[Your name]',
-    '[Your contact details]',
+    profile.name || '[Your name]',
+    [profile.email, profile.phone, profile.location].filter(Boolean).join(' · ') || '[Your contact details]',
     '',
     'Dear [Hiring manager — name not stated in listing],',
     '',
     `Re: ${job.title}, ${job.employer}`,
     '',
-    '[Opening: why this role and organisation. To be drafted from your profile.]',
+    `I am applying for the ${job.title} position at ${job.employer}. ${profile.summary || '[Add a short introduction based on your experience and interest in this role.]'}`,
     '',
-    '[Evidence: match your own experience to what the listing asks for:',
-    ...reqs.map((r) => `  • ${r}`),
-    'Only facts from your CV will be used here.]',
+    evidence || '[Add relevant experience from your profile.]',
+    '',
+    `The listing highlights: ${reqs.join('; ')}. Review this draft and connect these requirements to specific examples from your experience.`,
     '',
     job.tab === 'uk-visa'
-      ? '[Closing: availability and your right-to-work / sponsorship statement, in wording you approve.]'
+      ? (profile.workAuthorization || '[Add your accurate UK work-authorisation statement before using this letter.]')
       : '[Closing: availability and notice period, in wording you approve.]',
     '',
     'Yours sincerely,',
@@ -70,8 +70,9 @@ function DraftBox({ id, label, value, approved, placeholder, onChange, onApprove
   );
 }
 
-export default function ApplicationHelper({ job, state, onUpdate }) {
+export default function ApplicationHelper({ job, state, profile = {}, onUpdate }) {
   const [open, setOpen] = useState(null);
+  const [copied, setCopied] = useState(false);
   const drafts = state.drafts ?? {};
 
   const setDraft = (key, patch) => {
@@ -83,7 +84,35 @@ export default function ApplicationHelper({ job, state, onUpdate }) {
   };
 
   const cover = drafts.cover ?? {};
-  const coverText = cover.text ?? coverSkeleton(job);
+  const coverText = cover.text ?? '';
+  const generate = (key, value) => setDraft(key, { text: value });
+  const profileFacts = [profile.summary, profile.experience, profile.skills, profile.education, profile.achievements].filter(Boolean).join('\n\n');
+  const makeAnswer = (question) => {
+    if (!profileFacts) return '[Add relevant details to My profile, then generate this answer.]';
+    const q = question.toLowerCase();
+    const matched = q.includes('skill') ? profile.skills
+      : q.includes('experience') || q.includes('tell us') || q.includes('background') ? [profile.summary, profile.experience, profile.achievements].filter(Boolean).join('\n\n')
+        : q.includes('education') || q.includes('qualification') ? profile.education
+          : profile.summary || profile.experience;
+    return matched || '[No matching profile information. Add a truthful answer yourself.]';
+  };
+  const copyPrompt = async () => {
+    const task = open === 'cover' ? 'Write a tailored cover letter'
+      : open === 'cv' ? 'Suggest truthful CV edits'
+        : 'Draft answers to the application questions';
+    const prompt = [
+      'Act as a careful job-application writing assistant.', task + '.',
+      'Use only facts explicitly present in the profile and listing below. Do not invent qualifications, dates, achievements, metrics, work authorization, or experience. If evidence is missing, flag it as [NEEDS MY INPUT] instead of guessing. Keep wording clear and specific. Return editable plain text.',
+      'PROFILE (provided by me):', JSON.stringify(profile, null, 2),
+      'JOB LISTING:', JSON.stringify({ title: job.title, employer: job.employer, location: job.location, description: job.description, requirements: job.requirements, applicationQuestions: job.applicationQuestions, sponsorship: job.sponsorship }, null, 2),
+      open === 'questions' ? 'Answer each listed question separately. Leave personal details not in the profile marked [NEEDS MY INPUT].' : '',
+      open === 'cv' ? 'For each suggested edit, identify the profile fact that supports it. Do not add unsupported accomplishments.' : '',
+    ].filter(Boolean).join('\n\n');
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopied(true); window.setTimeout(() => setCopied(false), 3000);
+    } catch { setCopied(false); }
+  };
 
   return (
     <section className="content-section helper" aria-labelledby="sec-helper">
@@ -110,14 +139,16 @@ export default function ApplicationHelper({ job, state, onUpdate }) {
 
       {open && (
         <div className="helper__panel" id={`helper-${open}`}>
-          <div className="placeholder-tag">Placeholder · AI drafting not active yet</div>
+          <div className="helper__prompt-row"><div className="placeholder-tag">Profile-based draft · no AI service connected</div>
+            <button type="button" className="btn btn--secondary btn--sm" onClick={copyPrompt}>{copied ? 'Prompt copied' : 'Copy prompt for Claude'}</button></div>
+          <p className="muted">Paste the copied prompt into Claude, review its response, then paste the text you want to keep into the editable draft below.</p>
 
           <div className="callout callout--warn">
             <Icon name="alert" />
             <div>
               <strong>Missing information</strong>
               <ul className="bullets bullets--tight">
-                {missingInfo(job).map((m) => <li key={m}>{m}</li>)}
+                {missingInfo(job, profile).map((m) => <li key={m}>{m}</li>)}
               </ul>
             </div>
           </div>
@@ -125,10 +156,9 @@ export default function ApplicationHelper({ job, state, onUpdate }) {
           {open === 'cover' && (
             <>
               <p>
-                When active, this will draft a cover letter for <strong>{job.title}</strong> using only your profile
-                and this listing. For now, the skeleton below contains only facts from the listing. Everything in
-                [brackets] is for you to complete.
+                This draft uses only the details you entered in My profile and the job listing. Review every statement before use.
               </p>
+              <button type="button" className="btn btn--secondary" onClick={() => generate('cover', coverSkeleton(job, profile))}>Generate / refresh draft</button>
               <DraftBox
                 id={`cover-${job.id}`}
                 label="Cover letter (editable)"
@@ -144,8 +174,7 @@ export default function ApplicationHelper({ job, state, onUpdate }) {
           {open === 'cv' && (
             <>
               <p>
-                When active, this will compare each requirement below with your CV. It will suggest wording changes
-                only where your CV already contains the evidence, and flag gaps it cannot fill.
+                Profile evidence is shown when available. Use the suggestions as editing prompts; they are not a claim that your CV contains proof beyond the text you entered.
               </p>
               <div className="table-wrap">
                 <table className="req-table">
@@ -160,8 +189,8 @@ export default function ApplicationHelper({ job, state, onUpdate }) {
                     {job.requirements.map((r) => (
                       <tr key={r}>
                         <td>{r}</td>
-                        <td className="pending">Pending: CV not added</td>
-                        <td className="pending">Pending</td>
+                        <td>{[profile.skills, profile.experience, profile.summary].filter(Boolean).join(' · ') || <span className="pending">Add details in My profile</span>}</td>
+                        <td>{profileFacts ? `Review whether your profile evidence supports: ${r}` : <span className="pending">Pending profile details</span>}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -183,8 +212,7 @@ export default function ApplicationHelper({ job, state, onUpdate }) {
           {open === 'questions' && (
             <>
               <p>
-                When active, this will draft answers to each question using only your profile. Questions it cannot
-                answer from your profile, such as notice period, salary or right to work, stay blank for you to fill.
+                Select “Draft answer” to prefill from matching profile details. Questions not covered by your profile remain for you to answer.
               </p>
               {job.applicationQuestions.length === 0 ? (
                 <p className="muted">No application questions were found in this listing.</p>
@@ -193,17 +221,19 @@ export default function ApplicationHelper({ job, state, onUpdate }) {
                   const key = `q${i}`;
                   const d = drafts[key] ?? {};
                   return (
+                    <div key={key}>
+                    <button type="button" className="btn btn--secondary btn--sm" onClick={() => generate(key, makeAnswer(q))}>Draft answer from profile</button>
                     <DraftBox
-                      key={key}
                       id={`${key}-${job.id}`}
                       label={`Q${i + 1}. ${q}`}
                       value={d.text ?? ''}
                       approved={d.approved}
-                      placeholder="Draft answers will appear here once your profile is added. You can write your own answer now."
+                      placeholder="Add your own truthful answer, or draft from your profile."
                       rows={4}
                       onChange={(text) => setDraft(key, { text })}
                       onApprove={(approved) => setDraft(key, { approved })}
                     />
+                    </div>
                   );
                 })
               )}

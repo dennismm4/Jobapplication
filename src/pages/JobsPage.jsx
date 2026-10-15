@@ -2,7 +2,7 @@ import { applyFilters, isFiltered, locationsFor } from '../lib/jobs.js';
 import { FilterSidebar, ResultsToolbar } from '../components/FilterBar.jsx';
 import JobCard from '../components/JobCard.jsx';
 
-export default function JobsPage({ tab, jobs, jobState, filters, setFilters, resetFilters, actions, maxPerTab }) {
+export default function JobsPage({ tab, jobs, jobState, filters, setFilters, resetFilters, actions, maxPerTab, onRefresh, refreshing, lastRefresh, feedError }) {
   const visible = applyFilters(jobs, filters, jobState);
   const locations = locationsFor(jobs);
   const shortOfMax = jobs.length < maxPerTab;
@@ -32,6 +32,11 @@ export default function JobsPage({ tab, jobs, jobState, filters, setFilters, res
         </aside>
 
         <section className="layout-content" aria-label={`${tab.label} results`}>
+          <div className="feed-refresh">
+            <button type="button" className="btn btn--secondary btn--sm" onClick={onRefresh} disabled={refreshing}>{refreshing ? 'Checking feed…' : 'Refresh jobs'}</button>
+            <span className="muted">{lastRefresh ? `Feed updated ${new Date(lastRefresh).toLocaleString()}` : 'Daily feed refresh is scheduled in GitHub Actions.'}</span>
+          </div>
+          {feedError && <p role="status" className="feed-error">{feedError}</p>}
           <ResultsToolbar
             filters={filters}
             onChange={setFilters}
