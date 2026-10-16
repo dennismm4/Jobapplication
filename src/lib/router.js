@@ -7,13 +7,18 @@ export const href = {
   tab: (tabId) => `#/${tabId}`,
   job: (id) => `#/job/${encodeURIComponent(id)}`,
   applications: () => '#/applications',
+  profile: () => '#/profile',
+  search: () => '#/search',
 };
 
 export function parseHash(hash) {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (parts[0] === 'job' && parts[1]) return { name: 'job', id: decodeURIComponent(parts[1]), key: hash };
   if (parts[0] === 'applications') return { name: 'applications', key: hash };
+  if (parts[0] === 'profile') return { name: 'profile', key: hash };
+  if (parts[0] === 'search') return { name: 'search', key: hash };
   if (parts[0] === 'uk-visa') return { name: 'list', tab: 'uk-visa', key: hash };
+  if (parts[0] === 'nordic-visa') return { name: 'list', tab: 'nordic-visa', key: hash };
   return { name: 'list', tab: 'ngo-kenya', key: hash || '#/ngo-kenya' };
 }
 

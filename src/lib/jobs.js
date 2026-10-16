@@ -32,6 +32,15 @@ export function dedupeJobs(jobs) {
   return [...byKey.values()];
 }
 
+export function profileMatchScore(job, profile = {}) {
+  const profileText = [profile.preferredRoles, profile.summary, profile.skills, profile.experience, profile.education, profile.achievements, profile.cvText].join(' ').toLowerCase();
+  const terms = [...new Set(profileText.match(/[a-z0-9+#.]{3,}/g) || [])]
+    .filter((term) => !'and the for with from your have this that will years experience role skills'.split(' ').includes(term));
+  if (!terms.length) return 0;
+  const jobText = [job.title, job.employer, job.location, job.summary, ...(job.description || []), ...(job.requirements || [])].join(' ').toLowerCase();
+  return Math.round((terms.filter((term) => jobText.includes(term)).length / terms.length) * 100);
+}
+
 export const STATUSES = [
   { id: '', label: 'Not tracked' },
   { id: 'interested', label: 'Interested' },

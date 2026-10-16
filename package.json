@@ -5,10 +5,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fetch:jobs": "node scripts/fetch-jobs.mjs"
   },
   "license": "UNLICENSED",
+  "packageManager": "pnpm@11.25.0",
   "dependencies": {
+    "mammoth": "^1.13.0",
+    "pdfjs-dist": "^6.4.299",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

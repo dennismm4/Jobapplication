@@ -6,7 +6,22 @@ import SponsorshipBadge from '../components/SponsorshipBadge.jsx';
 import ApplicationHelper from '../components/ApplicationHelper.jsx';
 import { Icon } from '../components/Icon.jsx';
 
-export default function JobPage({ job, state, actions, onDismissed }) {
+const STOP = new Set('the and for with from your you have this that will years experience role skills in of to a an is are our'.split(' '));
+function profileEvidence(profile = {}, requirement) {
+  const sources = [
+    ['Summary', profile.summary], ['Work experience', profile.experience], ['Skills', profile.skills],
+    ['Education', profile.education], ['Achievements', profile.achievements], ['Uploaded CV', profile.cvText],
+  ].filter(([, value]) => value?.trim());
+  const terms = requirement.toLowerCase().match(/[a-z0-9]{3,}/g)?.filter((word) => !STOP.has(word)) || [];
+  return sources.map(([label, value]) => {
+    const matches = [...new Set(terms.filter((word) => value.toLowerCase().includes(word)))];
+    const first = matches.length ? value.toLowerCase().indexOf(matches[0]) : 0;
+    const excerpt = value.length > 360 ? `…${value.slice(Math.max(0, first - 90), Math.max(0, first - 90) + 360)}…` : value;
+    return matches.length ? { label, value: excerpt, matches } : null;
+  }).filter(Boolean).sort((a, b) => b.matches.length - a.matches.length)[0] || null;
+}
+
+export default function JobPage({ job, state, actions, onDismissed, profile }) {
   if (!job) {
     return (
       <div className="container narrow">
@@ -61,11 +76,22 @@ export default function JobPage({ job, state, actions, onDismissed }) {
             <div className="callout callout--info">
               <Icon name="alert" />
               <div>
-                <strong>Profile matching is not active yet.</strong> Your CV and preferences have not been added, so
-                this section cannot say how you match. Once they are added, each point here will cite a specific line
-                from your profile next to the listing requirement it meets.
+                {profile && [profile.summary, profile.experience, profile.skills, profile.education, profile.achievements, profile.cvText].some(Boolean)
+                  ? 'Suggested evidence below comes from text you entered or extracted from your CV in this browser. Keyword overlap is only a prompt for your review; it does not prove that you meet a requirement.'
+                  : <>Add your information in <a href={href.profile()}>My profile</a> to see possible evidence matches. No claims are generated from missing information.</>}
               </div>
             </div>
+            {profile && [profile.summary, profile.experience, profile.skills, profile.education, profile.achievements, profile.cvText].some(Boolean) && job.requirements.length > 0 && (
+              <div className="evidence-list">
+                {job.requirements.map((requirement) => {
+                  const evidence = profileEvidence(profile, requirement);
+                  return <div className="evidence-list__item" key={requirement}>
+                    <strong>Listing asks: {requirement}</strong>
+                    <p>{evidence ? <><span className="evidence-list__label">Possible profile evidence ({evidence.label}):</span> {evidence.value}</> : <span className="pending">No keyword match found in your profile; review this requirement yourself.</span>}</p>
+                  </div>;
+                })}
+              </div>
+            )}
             {job.listingSignals.length > 0 && (
               <>
                 <h3>Signals from the listing (used for matching later)</h3>
@@ -76,9 +102,9 @@ export default function JobPage({ job, state, actions, onDismissed }) {
             )}
           </section>
 
-          {job.tab === 'uk-visa' && (
+          {(job.tab === 'uk-visa' || job.tab === 'nordic-visa') && (
             <section className="content-section" aria-labelledby="sec-visa">
-              <h2 id="sec-visa">Visa sponsorship evidence</h2>
+              <h2 id="sec-visa">{job.tab === 'uk-visa' ? 'Visa sponsorship evidence' : 'Work permit / relocation evidence'}</h2>
               {job.sponsorship ? (
                 <>
                   <div className={`callout ${job.sponsorship.status === 'verified' ? 'callout--ok' : 'callout--warn'}`}>
@@ -98,7 +124,7 @@ export default function JobPage({ job, state, actions, onDismissed }) {
                     ))}
                   </ul>
                   <p className="fine-print">
-                    Always confirm sponsorship with the employer before relying on it. Evidence here is sample data.
+                    Always confirm immigration support for this specific vacancy with the employer. {job.tab === 'uk-visa' && 'A sponsor-register entry alone does not prove that a role offers sponsorship.'}
                   </p>
                 </>
               ) : (
@@ -107,7 +133,7 @@ export default function JobPage({ job, state, actions, onDismissed }) {
             </section>
           )}
 
-          <ApplicationHelper job={job} state={state} onUpdate={(patch) => actions.update(job.id, patch)} />
+          <ApplicationHelper job={job} state={state} profile={profile} onUpdate={(patch) => actions.update(job.id, patch)} />
         </article>
 
         <aside className="job-page__aside" aria-label="Job summary and actions">

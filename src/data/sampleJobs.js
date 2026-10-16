@@ -21,6 +21,12 @@ export const TABS = [
     shortLabel: 'UK · Visa',
     blurb: 'UK roles where sponsorship is stated or can be checked against the sponsor register.',
   },
+  {
+    id: 'nordic-visa',
+    label: 'Sweden & Finland Sponsorship Jobs',
+    shortLabel: 'Sweden & Finland',
+    blurb: 'Roles in Sweden and Finland with work permit or relocation support stated in the listing.',
+  },
 ];
 
 const RAW = [

@@ -1,9 +1,14 @@
-import { applyFilters, isFiltered, locationsFor } from '../lib/jobs.js';
+import { applyFilters, isFiltered, locationsFor, profileMatchScore } from '../lib/jobs.js';
 import { FilterSidebar, ResultsToolbar } from '../components/FilterBar.jsx';
 import JobCard from '../components/JobCard.jsx';
+import { JOB_SOURCES } from '../data/jobSources.js';
 
-export default function JobsPage({ tab, jobs, jobState, filters, setFilters, resetFilters, actions, maxPerTab }) {
+export default function JobsPage({ tab, jobs, jobState, filters, setFilters, resetFilters, actions, maxPerTab, onRefresh, refreshing, lastRefresh, feedError, profile }) {
   const visible = applyFilters(jobs, filters, jobState);
+  if (tab.id === 'uk-visa' && profile?.cvText) visible.sort((a, b) => {
+    const nhs = (job) => /\bNHS\b|National Health Service/i.test(`${job.title} ${job.employer}`) ? 1 : 0;
+    return nhs(b) - nhs(a) || profileMatchScore(b, profile) - profileMatchScore(a, profile) || b.postedDate.localeCompare(a.postedDate);
+  });
   const locations = locationsFor(jobs);
   const shortOfMax = jobs.length < maxPerTab;
 
@@ -32,6 +37,16 @@ export default function JobsPage({ tab, jobs, jobState, filters, setFilters, res
         </aside>
 
         <section className="layout-content" aria-label={`${tab.label} results`}>
+          <div className="feed-refresh">
+            <button type="button" className="btn btn--secondary btn--sm" onClick={onRefresh} disabled={refreshing}>{refreshing ? 'Checking feed…' : 'Refresh jobs'}</button>
+            <span className="muted">{lastRefresh ? `Feed updated ${new Date(lastRefresh).toLocaleString()}` : 'Daily feed refresh is scheduled in GitHub Actions.'}</span>
+          </div>
+          {feedError && <p role="status" className="feed-error">{feedError}</p>}
+          {JOB_SOURCES[tab.id] && <section className="source-links" aria-label="Other job websites">
+            <h2>Search these job websites</h2>
+            <ul>{JOB_SOURCES[tab.id].map((source) => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.label}</a><span>{source.note}</span></li>)}</ul>
+          </section>}
+          {tab.id === 'uk-visa' && profile?.cvText && <p className="callout callout--info">UK jobs are ranked using keywords from your CV, with NHS roles kept first. This is a relevance hint, not an eligibility or sponsorship decision.</p>}
           <ResultsToolbar
             filters={filters}
             onChange={setFilters}
