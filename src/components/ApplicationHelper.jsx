@@ -10,7 +10,7 @@ const TOOLS = [
 /** Information the drafts would need but that the app does not have yet. */
 function missingInfo(job, profile) {
   const items = [];
-  if (!profile?.summary && !profile?.experience && !profile?.skills) items.push('Add a professional summary, skills, or work experience in My profile before generating profile-based drafts.');
+  if (!profile?.summary && !profile?.experience && !profile?.skills && !profile?.cvText) items.push('Add a professional summary, skills, work experience, or upload a CV in My profile before generating profile-based drafts.');
   if (job.tab === 'uk-visa' || job.tab === 'nordic-visa') {
     if (!profile?.workAuthorization) items.push(`Your ${job.tab === 'uk-visa' ? 'UK' : 'country-specific'} work-authorisation wording is missing. Drafts will not claim a visa status.`);
   }
@@ -22,7 +22,7 @@ function missingInfo(job, profile) {
 /** Cover-letter skeleton built only from listing facts, with brackets for everything else. */
 function coverSkeleton(job, profile = {}) {
   const reqs = job.requirements.slice(0, 3);
-  const evidence = [profile.summary, profile.experience, profile.achievements].filter(Boolean).join('\n\n');
+  const evidence = [profile.summary, profile.experience, profile.achievements, profile.cvText].filter(Boolean).join('\n\n').slice(0, 12_000);
   return [
     profile.name || '[Your name]',
     [profile.email, profile.phone, profile.location].filter(Boolean).join(' · ') || '[Your contact details]',
@@ -88,7 +88,7 @@ export default function ApplicationHelper({ job, state, profile = {}, onUpdate }
   const cover = drafts.cover ?? {};
   const coverText = cover.text ?? '';
   const generate = (key, value) => setDraft(key, { text: value });
-  const profileFacts = [profile.summary, profile.experience, profile.skills, profile.education, profile.achievements].filter(Boolean).join('\n\n');
+  const profileFacts = [profile.summary, profile.experience, profile.skills, profile.education, profile.achievements, profile.cvText].filter(Boolean).join('\n\n');
   const makeAnswer = (question) => {
     if (!profileFacts) return '[Add relevant details to My profile, then generate this answer.]';
     const q = question.toLowerCase();
@@ -105,7 +105,7 @@ export default function ApplicationHelper({ job, state, profile = {}, onUpdate }
     const prompt = [
       'Act as a careful job-application writing assistant.', task + '.',
       'Use only facts explicitly present in the profile and listing below. Do not invent qualifications, dates, achievements, metrics, work authorization, or experience. If evidence is missing, flag it as [NEEDS MY INPUT] instead of guessing. Keep wording clear and specific. Return editable plain text.',
-      'PROFILE (provided by me):', JSON.stringify(profile, null, 2),
+      'PROFILE (provided by me):', JSON.stringify({ ...profile, cvText: profile.cvText?.slice(0, 12_000) }, null, 2),
       'JOB LISTING:', JSON.stringify({ title: job.title, employer: job.employer, location: job.location, description: job.description, requirements: job.requirements, applicationQuestions: job.applicationQuestions, sponsorship: job.sponsorship }, null, 2),
       open === 'questions' ? 'Answer each listed question separately. Leave personal details not in the profile marked [NEEDS MY INPUT].' : '',
       open === 'cv' ? 'For each suggested edit, identify the profile fact that supports it. Do not add unsupported accomplishments.' : '',

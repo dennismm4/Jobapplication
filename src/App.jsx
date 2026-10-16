@@ -133,6 +133,7 @@ export default function App() {
         refreshing={refreshing}
         lastRefresh={lastRefresh}
         feedError={feedError}
+        profile={profile}
       />
     );
   }

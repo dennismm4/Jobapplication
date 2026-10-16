@@ -6,7 +6,7 @@ const PROFILE_KEY = 'jobdesk.v1.profile';
 
 export const EMPTY_PROFILE = {
   name: '', email: '', phone: '', location: '', summary: '', skills: '', experience: '',
-  education: '', achievements: '', workAuthorization: '', preferredRoles: '',
+  education: '', achievements: '', workAuthorization: '', preferredRoles: '', cvText: '', cvFileName: '',
 };
 
 export function loadProfile() {

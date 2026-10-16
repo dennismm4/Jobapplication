@@ -10,12 +10,14 @@ const STOP = new Set('the and for with from your you have this that will years e
 function profileEvidence(profile = {}, requirement) {
   const sources = [
     ['Summary', profile.summary], ['Work experience', profile.experience], ['Skills', profile.skills],
-    ['Education', profile.education], ['Achievements', profile.achievements],
+    ['Education', profile.education], ['Achievements', profile.achievements], ['Uploaded CV', profile.cvText],
   ].filter(([, value]) => value?.trim());
   const terms = requirement.toLowerCase().match(/[a-z0-9]{3,}/g)?.filter((word) => !STOP.has(word)) || [];
   return sources.map(([label, value]) => {
     const matches = [...new Set(terms.filter((word) => value.toLowerCase().includes(word)))];
-    return matches.length ? { label, value, matches } : null;
+    const first = matches.length ? value.toLowerCase().indexOf(matches[0]) : 0;
+    const excerpt = value.length > 360 ? `…${value.slice(Math.max(0, first - 90), Math.max(0, first - 90) + 360)}…` : value;
+    return matches.length ? { label, value: excerpt, matches } : null;
   }).filter(Boolean).sort((a, b) => b.matches.length - a.matches.length)[0] || null;
 }
 
@@ -74,12 +76,12 @@ export default function JobPage({ job, state, actions, onDismissed, profile }) {
             <div className="callout callout--info">
               <Icon name="alert" />
               <div>
-                {profile && [profile.summary, profile.experience, profile.skills, profile.education, profile.achievements].some(Boolean)
-                  ? 'Suggested evidence below comes from text you entered in My profile. Keyword overlap is only a prompt for your review; it does not prove that you meet a requirement.'
+                {profile && [profile.summary, profile.experience, profile.skills, profile.education, profile.achievements, profile.cvText].some(Boolean)
+                  ? 'Suggested evidence below comes from text you entered or extracted from your CV in this browser. Keyword overlap is only a prompt for your review; it does not prove that you meet a requirement.'
                   : <>Add your information in <a href={href.profile()}>My profile</a> to see possible evidence matches. No claims are generated from missing information.</>}
               </div>
             </div>
-            {profile && [profile.summary, profile.experience, profile.skills, profile.education, profile.achievements].some(Boolean) && job.requirements.length > 0 && (
+            {profile && [profile.summary, profile.experience, profile.skills, profile.education, profile.achievements, profile.cvText].some(Boolean) && job.requirements.length > 0 && (
               <div className="evidence-list">
                 {job.requirements.map((requirement) => {
                   const evidence = profileEvidence(profile, requirement);

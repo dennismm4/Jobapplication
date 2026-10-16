@@ -32,7 +32,7 @@ function normalizeFeed(payload, contentType) {
 
 function profileScore(job, profile) {
   const haystack = `${job.title} ${job.employer} ${job.summary} ${job.location}`.toLowerCase();
-  const terms = `${profile.preferredRoles || ''} ${profile.skills || ''} ${profile.experience || ''}`
+  const terms = `${profile.preferredRoles || ''} ${profile.skills || ''} ${profile.experience || ''} ${profile.cvText || ''}`
     .toLowerCase().split(/[^a-z0-9+#.]+/).filter((word) => word.length > 2);
   const unique = [...new Set(terms)];
   const matches = unique.filter((term) => haystack.includes(term));

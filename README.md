@@ -15,6 +15,9 @@ A personal job-search and application-assistance **website** with these sections
 - Website layout: header navigation, a page per category, a full page per job, and a tracker page. Each page has its own address (for example `#/uk-visa` or `#/job/uk-001`), so the browser Back button and bookmarks work.
 - Each category page shows up to 5 jobs, with a note when fewer than 5 are available. Each job shows title, employer, location, date posted, closing date (or "not stated"), source and an **Open job** link.
 - UK sponsored listings are ranked with NHS roles first when the NHS is named in the employer or title. The search still covers the full UK, so other UK locations remain eligible.
+- Search links for beBee Kenya and UNjobs Kenya are available from the NGO tab. They open the job sites directly; the app does not scrape them. beBee's terms prohibit unauthorized scraping and automated bots, and UNjobs blocks all crawlers in `robots.txt`.
+- The UK tab links to NHS Jobs, NHS Health Careers, GOV.UK Find a Job, jobs.ac.uk, CharityJob and Adzuna. NHS Health Careers describes roles; NHS Jobs is the vacancy search. Always check sponsorship with the employer.
+- Anyone using their own browser can upload a PDF, DOCX or TXT CV in My profile. Text extraction happens in the browser; the original file is not uploaded. Extracted text is saved in that browser and ranks UK recommendations while retaining NHS priority.
 - Nordic listings are searched in Sweden and Finland. They must mention sponsorship, work permits or relocation support; those signals are shown as unverified and must be confirmed with the employer.
 - **Search a URL** accepts a public HTTPS RSS, Atom or JSON feed, ranks jobs by keyword overlap with your profile and caps each search at 10 results. The feed must allow browser access (CORS); ordinary job-board pages, login-protected pages and feeds that block browser access cannot be fetched by this static site.
 - **Filters** (left sidebar): job title search, location, date posted, application status. Above the results: Active / Saved / Dismissed views and sorting by newest or closing soonest.
@@ -30,7 +33,7 @@ The site never submits applications or contacts employers.
 
 ## Open the website (no installation)
 
-After a build, open **`dist/index.html`** in a browser for the local sample experience, or use `npm run preview` to test the daily job feed. The deployed GitHub Pages site loads `jobs.json` beside the page.
+After a build, open **`dist/index.html`** in a browser for the local sample experience, or use `pnpm preview` to test the daily job feed. The deployed GitHub Pages site loads `jobs.json` beside the page.
 
 ## Work on the code
 
@@ -38,18 +41,18 @@ Requirements: [Node.js](https://nodejs.org/) 20 or newer.
 
 ```bash
 cd job-desk
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Then open http://localhost:5173 in your browser. Changes to the code appear immediately.
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Runs the site locally with live reload |
-| `npm run build` | Builds the website into `dist/` |
-| `npm run preview` | Serves the built site at a local address |
-| `npm run fetch:jobs` | Fetches a batch using the configured source credentials |
+| `pnpm dev` | Runs the site locally with live reload |
+| `pnpm build` | Builds the website into `dist/` |
+| `pnpm preview` | Serves the built site at a local address |
+| `pnpm fetch:jobs` | Fetches a batch using the configured source credentials |
 
 For a manual fetch, set `RELIEFWEB_APPNAME`, `ADZUNA_APP_ID`, and `ADZUNA_APP_KEY` in your shell first. Never put real values in `.env.example` or commit a `.env` file.
 
@@ -65,7 +68,7 @@ Add the following under **Settings → Secrets and variables → Actions**. Do n
 | `ADZUNA_APP_ID` | Your Adzuna application ID |
 | `ADZUNA_APP_KEY` | Your Adzuna application key |
 
-Then set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The workflow deploys the static site. Profile data and application drafts remain in each browser and are not part of the deployed build. The UK sponsor register verifies that an employer appears on the official Skilled Worker list; the job listing must also mention sponsorship. Always confirm with the employer.
+Then set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The workflow deploys the static site. Profile data, uploaded CV text and application drafts remain in each browser and are not part of the deployed build. The UK sponsor register verifies that an employer appears on the official Skilled Worker list; the job listing must also mention sponsorship. Always confirm with the employer.
 
 The app does not submit applications or contact employers. Drafts use profile text you entered or prompts you can paste into Claude. Direct Claude API generation needs a separate server-side service; never put an AI API key in the browser.
 
@@ -79,17 +82,19 @@ job-desk/
 │  ├─ App.jsx                   Shared state and page routing
 │  ├─ styles.css                All styling (design tokens, layout, responsive rules)
 │  ├─ data/sampleJobs.js        SAMPLE DATA (fictional fallback)
+│  ├─ data/jobSources.js        Direct links to supported job search websites
 │  ├─ lib/
 │  │  ├─ router.js              Page addresses (#/ngo-kenya, #/uk-visa, #/nordic-visa, #/search, #/job/…)
 │  │  ├─ dates.js               Date formatting and "closes in" logic
 │  │  ├─ jobs.js                Dedupe, filters, sorting, statuses
-│  │  └─ storage.js             Browser-only persistence
+│  │  ├─ storage.js             Browser-only persistence
+│  │  └─ cv.js                  Browser-side PDF, DOCX and TXT extraction
 │  ├─ pages/
 │  │  ├─ JobsPage.jsx           Category page: filter sidebar + results
 │  │  ├─ UrlSearchPage.jsx      RSS, Atom and JSON search, relevance ranking, 10-result cap
 │  │  ├─ JobPage.jsx            Single job page with side panel
 │  │  ├─ ApplicationsPage.jsx   My applications tracker table
-│  │  └─ ProfilePage.jsx        Browser-local profile editor and backup
+│  │  └─ ProfilePage.jsx        Browser-local profile editor, CV upload and backup
 │  └─ components/
 │     ├─ SiteHeader.jsx, SiteFooter.jsx
 │     ├─ FilterBar.jsx          Filter sidebar and results toolbar
@@ -126,6 +131,7 @@ Live sources are mapped into the same shape and published as `public/jobs.json`,
 - Daily job search needs the three Actions secrets above and Pages configured. Missing or failed feeds leave the previous job batch in place.
 - The 5-job limit is per tab, not a promise that 5 suitable jobs will exist each day.
 - Custom URL search only works for direct RSS, Atom or JSON feeds that permit browser CORS access; a normal job-board web page URL is not a machine-readable feed.
+- CV uploads accept text-based PDF, DOCX and TXT files up to 10 MB (PDF up to 30 pages). Scanned image-only PDFs need OCR and are not supported. Each browser has a separate local profile; the site has no accounts or shared cloud profiles.
 - Profile match indicators are keyword suggestions from your browser-local profile, not an eligibility decision.
 - The GitHub Actions workflow deploys a GitHub Pages site. Pages is publicly viewable even when the source repository is private; private Pages availability depends on the GitHub plan. Do not add personal profile data to the published job feed.
 - AI model integration, user accounts, a shared database, and automatic application submission are not implemented.

@@ -310,6 +310,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .profile-form__field label { font-weight: 650; }
 .profile-form__field textarea { resize: vertical; line-height: 1.5; }
 .profile-form__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.cv-upload { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.cv-upload h2, .cv-upload p { margin: 0; }
+.source-links { margin: 12px 0 16px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.source-links h2 { margin: 0 0 8px; font-size: 1rem; }
+.source-links ul { display: flex; flex-wrap: wrap; gap: 8px 18px; list-style: none; margin: 0; padding: 0; }
+.source-links li { display: grid; gap: 2px; min-width: min(100%, 220px); }
+.source-links a { font-weight: 650; }
+.source-links span { color: var(--text-2); font-size: 0.82rem; }
 .url-job-list { padding-left: 24px; }
 .url-job-list li { padding: 14px 0; border-bottom: 1px solid var(--border); }
 .url-job-list li:last-child { border-bottom: 0; }

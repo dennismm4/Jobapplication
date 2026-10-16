@@ -13,3 +13,5 @@ private/
 *.pem
 *.p12
 *.pfx
+job-desk-profile.json
+*profile*.json
